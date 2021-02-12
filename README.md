@@ -299,10 +299,23 @@ public IActionResult OnGet(int videoGameId)
     VideoGame = _videoGameData.GetById(videoGameId);
     if (VideoGame == null)
     {
-        return RedirectToPage("./Error");
+        return RedirectToPage("../Error");
     }
     return Page();
 }
 ```
 
+- And modify the Error page
+
+```HTML
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h2 class="text-danger">Your Videogame was not found</h2>
+
+<a asp-page="./VideoGames/List" class="btn btn-primary">See all restaurants</a>
+```
 

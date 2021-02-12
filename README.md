@@ -226,5 +226,83 @@ public void OnGet()
 <input type="search" class="form-control" asp-for="SearchTerm" />
 ```
 
+- Detail page, we have to add a button for each videoGame to go to the detail page, in the List.cshtml view we are going to add a new td and use the tag helpers for tell to ASP.NET Core which is the page and which is the paremeter with the value
+
+```HTML
+<td>
+    <a class="btn btn-lg"
+       asp-page="./Detail" asp-route-videoGameId="@videogame.Id">
+        <i class="glyphicon glyphico-zoom-in"></i>
+    </a>
+</td>
+```
+
+- Create the detail page
+
+```C#
+public VideoGame VideoGame { get; set; }
+
+public void OnGet(int videoGameId)
+{
+    VideoGame = new VideoGame();
+    VideoGame.Id = videoGameId;
+}
+```
+
+- In the view
+
+```HTML
+@page
+@model JcProject.Pages.VideoGames.DetailModel
+@{
+    ViewData["Title"] = "Detail";
+}
+
+<h2>Name: @Model.VideoGame.Name</h2>
+
+<div>
+    Id: @Model.VideoGame.Id
+</div>
+<div>
+    Company: @Model.VideoGame.Company
+</div>
+
+<a asp-page="./List" class="btn btn-default">All VideoGames</a>
+```
+
+- If we want to pass the route VideoGames/Detail/1 instead /VideoGames/Detail?videoGameId=1 we can do it in the @page directive
+
+```HTML
+@page "{videoGameId:int}"
+```
+
+- Now we have to add the method to the interface
+
+```C#
+VideoGame GetById(int id);
+```
+
+- And implemented the method
+
+```C#
+public VideoGame GetById(int id)
+{
+    return videogames.SingleOrDefault(v => v.Id == id);
+}
+```
+
+- We want to prevent and handling errors, for do it we have to return an IActionResult in the OnGet method. If doesn't error we can return a Page(), Page return a PageResult that implement IActionResult and tells ASP.NET Core that render the page or take the Detail.cshtml and render that
+
+```C#
+public IActionResult OnGet(int videoGameId)
+{
+    VideoGame = _videoGameData.GetById(videoGameId);
+    if (VideoGame == null)
+    {
+        return RedirectToPage("./Error");
+    }
+    return Page();
+}
+```
 
 

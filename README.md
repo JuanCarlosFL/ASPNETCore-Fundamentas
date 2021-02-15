@@ -8,7 +8,7 @@
 
 - asp-page tag helper will do is set the href or my archor tag, to point to a Razor Page that I have in my project. We are going to add a new link to the VideoGames/List view and then create the folder VideoGames within Pages folder and create inside an Empy Razor Page List.cshtml
 
-- The system created two files, List.cshtml that is the Razor Page with the directive @page that tells ASP.NET Core that this is a Razor Page and has another directvie @model ListModel, this directive says that the model for this page is type ListModel (an instance of the ListModel class is the object that this page will use to display information.
+- The system created two files, List.cshtml that is the Razor Page with the directive @page that tells ASP.NET Core that this is a Razor Page and has another directive @model ListModel, this directive says that the model for this page is type ListModel (an instance of the ListModel class is the object that this page will use to display information).
 
 - The second file is List.cshtml.cs and contains the class ListModel, the methods here are going to be very much like controller actions and the properties are going to be very much like the models that i would pass into a view.
 
@@ -318,4 +318,270 @@ public IActionResult OnGet(int videoGameId)
 
 <a asp-page="./VideoGames/List" class="btn btn-primary">See all restaurants</a>
 ```
+
+- Edit page, copy and paste the td for ./Detail and change for ./Edit
+
+```HTML
+  <td>
+      <a class="btn btn-lg"
+         asp-page="./Edit" asp-route-videoGameId="@videogame.Id">
+          <i class="glyphicon glyphico-edit"></i>
+      </a>
+  </td>
+```
+
+- The Edit.cshtml.cs is very similar like the Detail
+
+```C#
+ public class EditModel : PageModel
+{
+    private readonly IVideoGameData _videoGameData;
+
+    public EditModel(IVideoGameData videogameData)
+    {
+        _videoGameData = videogameData;
+    }
+
+    public VideoGame VideoGame { get; set; }
+
+    public IActionResult OnGet(int videoGameId)
+    {
+        VideoGame = _videoGameData.GetById(videoGameId);
+        if (VideoGame == null)
+        {
+            return RedirectToPage("../Error");
+        }
+        return Page();
+    }
+}
+```
+
+- Remember the asp-for tag helper can do at least two jobs --> One is to set the name attribute of this input so that when the form is submitted, ASP.NET model binding can say this value is the value that should be placed into de VideoGame.Id property.  asp-for can also set the value of this imput.
+
+- In the select - option, whe don't want to hardcode, then we can use the asp-items tag helper and has two properties, one property says, here's the text to display, and the other property says, here's is the value to submit when that particular entry is chosen.  We need the data in the CompanyType enum and we can use IHtmlHelper
+
+```C#
+private readonly IHtmlHelper _htmlHelper;
+
+public EditModel(IVideoGameData videogameData, IHtmlHelper htmlHelper)
+{
+    _videoGameData = videogameData;
+    _htmlHelper = htmlHelper; 
+}
+
+public IEnumerable<SelectListItem> Companies { get; set; }
+
+ public IActionResult OnGet(int videoGameId)
+{
+    Companies = _htmlHelper.GetEnumSelectList<CompanyType>();
+    VideoGame = _videoGameData.GetById(videoGameId);
+    if (VideoGame == null)
+    {
+        return RedirectToPage("../Error");
+    }
+    return Page();
+}
+```
+
+- The view would look like this
+
+```HTML
+@page "{videoGameId:int}"
+@model JcProject.Pages.VideoGames.EditModel
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h2>Editing @Model.VideoGame.Name</h2>
+
+<form method="post">
+
+    <input type="hidden" value="" asp-for="VideoGame.Id" />
+    <div class="form-group">
+        <label asp-for="VideoGame.Name"></label>
+        <input asp-for="VideoGame.Name" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="VideoGame.Company"></label>
+        <select asp-for="VideoGame.Company" asp-items="Model.Companies" class="form-control">
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+```
+
+- Creating http post, we have to add new methods in the interface, the OnCommit method is thinking when we data source will be Entity Framework
+
+```C#
+VideoGame Update(VideoGame updatedVideogame);
+
+int Commit();
+
+public int Commit()
+{
+    return 0;
+}
+
+public VideoGame Update(VideoGame updatedVideogame)
+{
+    var videoGame = videogames.SingleOrDefault(v => v.Id == updatedVideogame.Id);
+    if (videoGame != null)
+    {
+        videoGame.Name = updatedVideogame.Name;
+        videoGame.Company = updatedVideogame.Company;
+    }
+
+    return videoGame;
+}
+```
+
+- And now we need to create the OnPost method in the Edit.cshtml.cs, First we have to add the BindProperty to the VideoGame property, then when when the user click on the save button this videogame should be populated with information from the form.
+
+```C#
+[BindProperty]
+public VideoGame VideoGame { get; set; }
+
+public IActionResult OnPost()
+{
+  Companies = _htmlHelper.GetEnumSelectList<CompanyType>();
+  _videoGameData.Update(VideoGame);
+  _videoGameData.Commit();
+  return Page();
+}
+
+```
+
+- Adding validation, int the VideoGame class
+
+```C#
+[Required, StringLength(80)]
+public string Name { get; set; }
+```
+
+- Change the OnPost method
+
+```C#
+public IActionResult OnPost()
+{
+    if (ModelState.IsValid)
+    {
+        _videoGameData.Update(VideoGame);
+        _videoGameData.Commit();
+
+    }
+    Companies = _htmlHelper.GetEnumSelectList<CompanyType>();
+    return Page();
+}
+```
+
+- In the view add the asp-validation-for tag helper
+
+```HTML
+<span class="text-danger" asp-validation-for="VideoGame.Name"></span>
+```
+
+- In web development is a bad idea to leave the user on a page that is displaying the results of an HTTP POST operation. Because if refresh the page, send other HTTP POST, in our case we can add a redirect to detail page bellow commit line.
+
+```C#
+return RedirectToPage("./Detail", new { videoGameId = VideoGame.Id });
+```
+
+- Adding create option, we are going to use the edit page for edit and create new videogame. First we need to add a new button on the list view.
+
+```HTML
+<a asp-page="./Edit" class="btn btn-primary">Add New</a>
+```
+
+- In the Edit view we are going to change the int parameter to optional parameter
+
+```HTML
+@page "{videoGameId:int?}"
+```
+
+- In the OnGet method we change de parameter to optional, if has value populate de videogame with the data, if doesn't have value create an empty videogame
+
+```C#
+public IActionResult OnGet(int? videoGameId)
+{
+    Companies = _htmlHelper.GetEnumSelectList<CompanyType>();
+    if (videoGameId.HasValue)
+    {
+        VideoGame = _videoGameData.GetById(videoGameId.Value);
+    }
+    else
+    {
+        VideoGame = new VideoGame();
+    }
+
+    if (VideoGame == null)
+    {
+        return RedirectToPage("../Error");
+    }
+    return Page();
+}
+```
+
+- In the Interface add a new method
+
+```C#
+VideoGame Add(VideoGame newVideoGame);
+
+public VideoGame Add(VideoGame newVideoGame)
+{
+    videogames.Add(newVideoGame);
+    //This line is only for simulate a database save
+    newVideoGame.Id = videogames.Max(v => v.Id + 1);
+    return newVideoGame;
+}
+```
+
+- Refactor the OnPost method
+
+```C#
+public IActionResult OnPost()
+{
+    if (!ModelState.IsValid)
+    {
+        Companies = _htmlHelper.GetEnumSelectList<CompanyType>();
+        return Page();
+    }
+
+    if (VideoGame.Id > 0)
+    {
+        _videoGameData.Update(VideoGame);
+    }
+    else
+    {
+        _videoGameData.Add(VideoGame);
+    }
+    _videoGameData.Commit();
+    return RedirectToPage("./Detail", new { videoGameId = VideoGame.Id });
+}
+```
+
+- Adding confirm operation, we can pass a message like a temporaly string witn TempData, add this below commit in the OnPost method
+
+```C#
+TempData["Message"] = "VideoGame saved!";
+```
+
+- In the Detail.cshtml.cs add a new property
+
+```C#
+[TempData]
+public string Message { get; set; }
+```
+
+- And in the Detal view add a conditional
+
+```HTML
+@if (Model.Message != null)
+{
+    <div class="alert alert-info">@Model.Message</div>
+}
+```
+
+
 
